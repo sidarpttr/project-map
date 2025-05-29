@@ -9,13 +9,26 @@
   "categories": [
     "Other"
   ],
+  "keybindings": [
+    {
+      "command": "project-map.generate",
+      "key": "ctrl+alt+p",
+      "when": "editorTextFocus"
+    }
+  ],
   "activationEvents": [],
   "main": "./extension.js",
   "contributes": {
-    "commands": [{
-      "command": "project-map.helloWorld",
-      "title": "Hello World"
-    }]
+    "commands": [
+      {
+        "command": "project-map.generate",
+        "title": "Generate Project Map - TXT"
+      },
+      {
+        "command": "project-map.generateCanvasPNG",
+        "title": "Generate Project Map - PNG"
+      }
+    ]
   },
   "scripts": {
     "lint": "eslint .",
@@ -23,11 +36,15 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.100.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
-    "eslint": "^9.25.1",
+    "@types/vscode": "^1.100.0",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.25.1"
+  },
+  "dependencies": {
+    "canvas": "^3.1.0",
+    "sharp": "^0.34.2"
   }
 }
