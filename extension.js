@@ -9,13 +9,20 @@ function generateTree(dir, prefix = "") {
 
     items.forEach((item, index) => {
         const fullPath = path.join(dir, item);
-        const isDir = fs.statSync(fullPath).isDirectory();
+        const stat = fs.statSync(fullPath);
+        const isDir = stat.isDirectory();
         const isLast = index === items.length - 1;
-        const pointer = isLast ? "┗━ " : "┣━ ";
-        const icon = isDir ? "📁 " : "📄 ";
-        result += `${prefix}${pointer}${icon}${item}\n`;
+
+        const pointer = isLast ? "└─" : "├─";
+        const icon = isDir ? "📁" : "📄";
+
+        // ✅ Klasör ismi veya dosya ismi yazılır
+        result += `${prefix}${pointer} ${icon} ${item}\n`;
+
+        // ✅ Klasörse içeriği recursive çiz
         if (isDir) {
-            result += generateTree(fullPath, prefix + (isLast ? "    " : "┃   "));
+            const newPrefix = prefix + (isLast ? "   " : "│  ");
+            result += generateTree(fullPath, newPrefix);
         }
     });
 
@@ -87,48 +94,7 @@ function activate(context) {
             }
 
             const rootPath = workspaceFolders[0].uri.fsPath;
-            const allItems = fs.readdirSync(rootPath);
-
-            const choices = allItems.map((item) => {
-                const fullPath = path.join(rootPath, item);
-                const isDir = fs.statSync(fullPath).isDirectory();
-                const icon = isDir ? "📁" : "📄";
-                return {
-                    label: `${icon} ${item}`,
-                    fullPath: fullPath,
-                    picked: true,
-                };
-            });
-
-            const selected = await vscode.window.showQuickPick(choices, {
-                canPickMany: true,
-                placeHolder:
-                    "Select the files/folders to include in project map",
-            });
-
-            let treeText = "";
-            for (const item of selected) {
-                const fullPath = item.fullPath;
-
-                if (fs.existsSync(fullPath)) {
-                    const isDir = fs.statSync(fullPath).isDirectory();
-
-                    if (isDir) {
-                        treeText += generateTree(fullPath, "") + "\n";
-                    } else {
-                        treeText += `📄 ${path.basename(fullPath)}\n`;
-                    }
-                }
-            }
-
-            // 📌 .txt oluştur
-            const txtPath = path.join(rootPath, "project-map.txt");
-            fs.writeFileSync(txtPath, treeText, "utf8");
-            vscode.window.showInformationMessage(
-                "📄 project-map.txt oluşturuldu."
-            );
-
-            // 📌 PNG oluştur
+            let txtPath = await generateText(rootPath);
             const pngPath = path.join(rootPath, "project-map.png");
             drawMapAsPNG(txtPath, pngPath);
             vscode.window
@@ -159,44 +125,7 @@ function activate(context) {
             }
 
             const rootPath = workspaceFolders[0].uri.fsPath;
-            const items = fs.readdirSync(rootPath);
-
-            const choices = items.map((item) => {
-                const fullPath = path.join(rootPath, item);
-                const isDir = fs.statSync(fullPath).isDirectory();
-                const icon = isDir ? "📁" : "📄";
-                return {
-                    label: `${icon} ${item}`,
-                    fullPath: fullPath,
-                    picked: true,
-                };
-            });
-
-            const selected = await vscode.window.showQuickPick(choices, {
-                canPickMany: true,
-                placeHolder:
-                    "Select the files/folders to include in project map",
-            });
-
-            if (!selected || selected.length === 0) {
-                vscode.window.showWarningMessage("No selection made.");
-                return;
-            }
-
-            let fullOutput = "";
-
-            for (const choice of selected) {
-                const isDir = fs.statSync(choice.fullPath).isDirectory();
-                if (isDir) {
-                    fullOutput += `${choice.label}\n`;
-                    fullOutput += generateTree(choice.fullPath, "   ");
-                } else {
-                    fullOutput += `📄 ${path.basename(choice.fullPath)}\n`;
-                }
-            }
-
-            const outputPath = path.join(rootPath, "project-map.txt");
-            fs.writeFileSync(outputPath, fullOutput, "utf8");
+            await generateText(rootPath);
 
             vscode.window
                 .showInformationMessage(
@@ -215,6 +144,47 @@ function activate(context) {
     );
 
     context.subscriptions.push(disposable);
+}
+
+async function generateText(rootPath) {
+    const items = fs.readdirSync(rootPath);
+
+    const choices = items.map((item) => {
+        const fullPath = path.join(rootPath, item);
+        const isDir = fs.statSync(fullPath).isDirectory();
+        const icon = isDir ? "📁" : "📄";
+        return {
+            label: `${icon} ${item}`,
+            fullPath: fullPath,
+            picked: true,
+        };
+    });
+
+    const selected = await vscode.window.showQuickPick(choices, {
+        canPickMany: true,
+        placeHolder: "Select the files/folders to include in project map",
+    });
+
+    if (!selected || selected.length === 0) {
+        vscode.window.showWarningMessage("No selection made.");
+        return;
+    }
+
+    let fullOutput = "";
+
+    for (const choice of selected) {
+        const isDir = fs.statSync(choice.fullPath).isDirectory();
+        if (isDir) {
+            fullOutput += `${choice.label}\n`;
+            fullOutput += generateTree(choice.fullPath, "   ");
+        } else {
+            fullOutput += `📄 ${path.basename(choice.fullPath)}\n`;
+        }
+    }
+
+    const outputPath = path.join(rootPath, "project-map.txt");
+    fs.writeFileSync(outputPath, fullOutput, "utf8");
+    return outputPath;
 }
 
 function deactivate() {}
